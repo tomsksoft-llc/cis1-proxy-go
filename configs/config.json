@@ -1,0 +1,10 @@
+[
+	{
+		"Location": "/example",
+		"Pass": "http://www.example.com:80/"
+	},
+	{
+		"Location": "/html",
+		"Pass": "http://htmlbook.ru:80/"
+	}
+]
