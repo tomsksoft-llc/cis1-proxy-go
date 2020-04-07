@@ -16,60 +16,58 @@ type Proxy interface {
 }
 
 func NewProxy() Proxy {
-	return &proxy{requestFilter: requestfiltration.NewFilter()}
+	return &proxy{filter: requestfiltration.NewFilter()}
 }
 
 type proxy struct {
 	listener       net.Listener
 	sessionTimeout int
-	requestFilter  requestfiltration.Filter
+	filter         requestfiltration.Filter
 }
 
-func (this *proxy) Configure(configPath string) error {
-	var configData, err = ioutil.ReadFile(configPath)
-	if err != nil {
+func (p *proxy) Configure(configPath string) error {
+	var b, err = ioutil.ReadFile(configPath)
+	if nil != err {
 		return err
 	}
 
 	var routes []requestfiltration.Route
-	routes, err = requestfiltration.ParseRoutes(configData)
-	if err != nil {
+	routes, err = requestfiltration.ParseRoutes(b)
+	if nil != err {
 		return err
 	}
 
-	for _, route := range routes {
-		this.requestFilter.AddRoute(route)
-	}
+	p.filter.AddRoutes(routes)
 
 	return nil
 }
 
-func (this *proxy) Listen(address string) error {
+func (p *proxy) Listen(address string) error {
 	var err error
-	this.listener, err = net.Listen("tcp4", address)
+	p.listener, err = net.Listen("tcp4", address)
 
 	return err
 }
 
-func (this *proxy) Run(sessionTimeout int) { // todo: correct interruption (maybe?)
-	this.sessionTimeout = sessionTimeout
+func (p *proxy) Run(sessionTimeout int) { // todo: correct interruption (maybe?)
+	p.sessionTimeout = sessionTimeout
 
-	var waitGroup sync.WaitGroup
-	waitGroup.Add(1)
-	go this.accept()
-	waitGroup.Wait()
+	var wg sync.WaitGroup
+	wg.Add(1)
+	go p.accept()
+	wg.Wait()
 }
 
-func (this *proxy) accept() {
-	var connection, err = this.listener.Accept()
-	if err == nil {
-		this.onAccept(connection)
+func (p *proxy) accept() {
+	var conn, err = p.listener.Accept()
+	if nil == err {
+		p.onAccept(conn)
 	}
 
-	go this.accept()
+	go p.accept()
 }
 
-func (this *proxy) onAccept(connection net.Conn) {
-	var newSession = session.NewSession(connection, this.requestFilter)
-	newSession.Run(this.sessionTimeout)
+func (p *proxy) onAccept(conn net.Conn) {
+	var s = session.NewSession(conn, p.filter)
+	s.Run(p.sessionTimeout)
 }

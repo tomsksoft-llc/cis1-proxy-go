@@ -19,29 +19,36 @@ func main() {
 
 	flag.Parse()
 
-	var isAllSet = true
+	var areAllParamsSet = true
 	if "" == *host {
 		fmt.Println("Host value (-a) is not set")
-		isAllSet = false
+		areAllParamsSet = false
 	}
 	if 0 == *port {
 		fmt.Println("Port value (-p) is not set")
-		isAllSet = false
+		areAllParamsSet = false
 	}
 	if "" == *configPath {
 		fmt.Println("Config path (-c) is not set")
-		isAllSet = false
+		areAllParamsSet = false
 	}
 
-	if true == isAllSet {
-		var proxy = proxy.NewProxy()
+	if true == areAllParamsSet {
+		var (
+			err   error
+			proxy = proxy.NewProxy()
+		)
 
-		if nil != proxy.Configure(*configPath) {
+		err = proxy.Configure(*configPath)
+		if nil != err {
+			fmt.Printf("Config: %s\r\n", err.Error())
 			return
 		}
 
 		var address = net.JoinHostPort(*host, strconv.Itoa(*port))
-		if nil != proxy.Listen(address) {
+		err = proxy.Listen(address)
+		if nil != err {
+			fmt.Printf("Listen: %s\r\n", err.Error())
 			return
 		}
 

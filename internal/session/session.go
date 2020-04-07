@@ -14,75 +14,89 @@ type Session interface {
 	Run(timeout int)
 }
 
-func NewSession(connection net.Conn, requestFilter requestfiltration.Filter) Session {
-	return &session{client: clientReader{connection: connection, inputBuffer: bufio.NewReader(connection)}, requestFilter: requestFilter}
+func NewSession(conn net.Conn, f requestfiltration.Filter) Session {
+	return &session{
+		client: clientReader{
+			conn:        conn,
+			inputBuffer: bufio.NewReader(conn),
+		},
+		filter: f,
+	}
 }
 
 type session struct {
-	client        clientReader
-	requestFilter requestfiltration.Filter
-	timeout       int
+	client struct {
+		conn        net.Conn
+		inputBuffer *bufio.Reader
+	}
+	filter  requestfiltration.Filter
+	timeout int
 }
 
 type clientReader struct {
-	connection  net.Conn
+	conn        net.Conn
 	inputBuffer *bufio.Reader
 }
 
-func (this *session) Run(timeout int) {
-	this.timeout = timeout
-	go this.readRequest()
+func (s *session) Run(timeout int) {
+	s.timeout = timeout
+	go s.readRequest()
 }
 
-func (this *session) closeConnection() {
-	this.client.connection.Close()
+func (s *session) closeConnection() {
+	s.client.conn.Close()
 }
 
-func (this *session) setReadTimeout() {
-	this.client.connection.SetReadDeadline(time.Now().Add(time.Second * time.Duration(this.timeout)))
+func (s *session) setTimeout() {
+	s.client.conn.SetReadDeadline(
+		time.Now().Add(
+			time.Second * time.Duration(s.timeout),
+		),
+	)
 }
 
-func (this *session) resetReadTimeout() {
-	this.client.connection.SetReadDeadline(time.Time{})
+func (s *session) resetTimeout() {
+	s.client.conn.SetReadDeadline(time.Time{})
 }
 
-func (this *session) readRequest() {
-	this.setReadTimeout()
+func (s *session) readRequest() {
+	s.setTimeout()
 
-	var request, err = http.ReadRequest(this.client.inputBuffer)
+	var req, err = http.ReadRequest(s.client.inputBuffer)
+	if nil != err {
+		s.closeConnection()
+		return
+	}
+
+	s.onReadRequest(req)
+}
+
+func (s *session) onReadRequest(req *http.Request) {
+	s.resetTimeout()
+
+	var passAddress, isPassed = s.filter.Filter(req)
+	if false == isPassed {
+		s.closeConnection()
+		return
+	}
+
+	var serverConn, err = net.Dial("tcp4", passAddress)
 	if err != nil {
-		this.closeConnection()
+		s.closeConnection()
 		return
 	}
 
-	this.onReadRequest(request)
+	go s.readRequest()
+	s.respond(serverConn, req)
 }
 
-func (this *session) onReadRequest(request *http.Request) {
-	this.resetReadTimeout()
-
-	if false == this.requestFilter.FilterRequest(request) {
-		this.closeConnection()
+func (s *session) respond(serverConn net.Conn, req *http.Request) {
+	if nil != req.Write(serverConn) {
+		s.closeConnection()
+		serverConn.Close()
 		return
 	}
 
-	var serverConnection, err = net.Dial("tcp4", this.requestFilter.GetLastPassAddress())
-	if err != nil {
-		this.closeConnection()
-		return
-	}
-
-	go this.readRequest()
-	go this.respond(serverConnection, request)
-}
-
-func (this *session) respond(serverConnection net.Conn, request *http.Request) {
-	if nil != request.Write(serverConnection) {
-		this.closeConnection()
-		serverConnection.Close()
-		return
-	}
-
-	io.Copy(this.client.connection, serverConnection)
-	serverConnection.Close()
+	io.Copy(s.client.conn, serverConn)
+	serverConn.Close()
 }

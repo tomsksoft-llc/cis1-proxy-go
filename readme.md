@@ -26,14 +26,24 @@ $ ./cis1-proxy-go -a=[proxy_host] -p=[proxy_port] -c=[config_file_path]
 Формат конфигурации:
 
 ```
-{
-	"Location": "/path",
-	"Pass": "http://www.example.com:80/"
-},
-{
-	"Location": "/another/path",
-	"Pass": "http://127.0.0.1:8080/test"
-}
+[
+	{
+		"Location": "/path",
+		"Pass": {
+			"Host": "www.example.com",
+			"Port": "80",
+			"Path": "/"
+		}
+	},
+	{
+		"Location": "/another/path",
+		"Pass": {
+			"Host": "127.0.0.1",
+			"Port": "8080",
+			"Path": "/test/"
+		}
+	}
+]
 ```
 
 При такой конфигурации запросы будут проксироваться на:
