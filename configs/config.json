@@ -1,10 +1,18 @@
 [
 	{
 		"Location": "/example",
-		"Pass": "http://www.example.com:80/"
+		"Pass": {
+			"Host": "www.example.com",
+			"Port": "80",
+			"Path": "/"
+		}
 	},
 	{
 		"Location": "/html",
-		"Pass": "http://htmlbook.ru:80/"
+		"Pass": {
+			"Host": "htmlbook.ru",
+			"Port": "80",
+			"Path": "/"
+		}
 	}
 ]
