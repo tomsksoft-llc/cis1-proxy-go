@@ -2,34 +2,30 @@ package session
 
 import (
 	"bufio"
-	"io"
 	"net"
 	"net/http"
 	"time"
 
-	"github.com/tomsksoft-llc/cis1-proxy-go/internal/requestfiltration"
+	"github.com/tomsksoft-llc/cis1-proxy-go/internal/routing"
 )
 
 type Session interface {
 	Run(timeout int)
 }
 
-func NewSession(conn net.Conn, f requestfiltration.Filter) Session {
+func NewSession(clientConn net.Conn, router routing.Router) Session {
 	return &session{
 		client: clientReader{
-			conn:        conn,
-			inputBuffer: bufio.NewReader(conn),
+			conn:        clientConn,
+			inputBuffer: bufio.NewReader(clientConn),
 		},
-		filter: f,
+		router: router,
 	}
 }
 
 type session struct {
-	client struct {
-		conn        net.Conn
-		inputBuffer *bufio.Reader
-	}
-	filter  requestfiltration.Filter
+	client  clientReader
+	router  routing.Router
 	timeout int
 }
 
@@ -41,10 +37,6 @@ type clientReader struct {
 func (s *session) Run(timeout int) {
 	s.timeout = timeout
 	go s.readRequest()
-}
-
-func (s *session) closeConnection() {
-	s.client.conn.Close()
 }
 
 func (s *session) setTimeout() {
@@ -64,7 +56,7 @@ func (s *session) readRequest() {
 
 	var req, err = http.ReadRequest(s.client.inputBuffer)
 	if nil != err {
-		s.closeConnection()
+		s.client.conn.Close()
 		return
 	}
 
@@ -74,29 +66,12 @@ func (s *session) readRequest() {
 func (s *session) onReadRequest(req *http.Request) {
 	s.resetTimeout()
 
-	var passAddress, isPassed = s.filter.Filter(req)
-	if false == isPassed {
-		s.closeConnection()
-		return
-	}
-
-	var serverConn, err = net.Dial("tcp4", passAddress)
-	if err != nil {
-		s.closeConnection()
-		return
+	var route = s.router.FindRoute(req)
+	if nil == route {
+		s.client.conn.Write([]byte("HTTP/1.1 404 Not Found\r\nContent-Length: 13\r\n\r\n404 Not Found"))
+	} else {
+		route.Process(req, s.client.conn)
 	}
 
 	go s.readRequest()
-	s.respond(serverConn, req)
-}
-
-func (s *session) respond(serverConn net.Conn, req *http.Request) {
-	if nil != req.Write(serverConn) {
-		s.closeConnection()
-		serverConn.Close()
-		return
-	}
-
-	io.Copy(s.client.conn, serverConn)
-	serverConn.Close()
 }

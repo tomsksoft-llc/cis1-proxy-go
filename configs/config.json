@@ -8,11 +8,19 @@
 		}
 	},
 	{
-		"Location": "/html",
+		"Location": "/blogs/about/html",
 		"Pass": {
 			"Host": "htmlbook.ru",
 			"Port": "80",
-			"Path": "/"
+			"Path": "/blog/"
+		}
+	},
+	{
+		"Job": "/test",
+		"Run": {
+			"Project": "pyinternal",
+			"Job": "core_test",
+			"Args": []
 		}
 	}
 ]

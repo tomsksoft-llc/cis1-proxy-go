@@ -5,7 +5,7 @@ import (
 	"net"
 	"sync"
 
-	"github.com/tomsksoft-llc/cis1-proxy-go/internal/requestfiltration"
+	"github.com/tomsksoft-llc/cis1-proxy-go/internal/routing"
 	"github.com/tomsksoft-llc/cis1-proxy-go/internal/session"
 )
 
@@ -16,13 +16,13 @@ type Proxy interface {
 }
 
 func NewProxy() Proxy {
-	return &proxy{filter: requestfiltration.NewFilter()}
+	return &proxy{router: routing.NewRouter()}
 }
 
 type proxy struct {
 	listener       net.Listener
 	sessionTimeout int
-	filter         requestfiltration.Filter
+	router         routing.Router
 }
 
 func (p *proxy) Configure(configPath string) error {
@@ -31,15 +31,7 @@ func (p *proxy) Configure(configPath string) error {
 		return err
 	}
 
-	var routes []requestfiltration.Route
-	routes, err = requestfiltration.ParseRoutes(b)
-	if nil != err {
-		return err
-	}
-
-	p.filter.AddRoutes(routes)
-
-	return nil
+	return p.router.ParseConfig(b)
 }
 
 func (p *proxy) Listen(address string) error {
@@ -68,6 +60,6 @@ func (p *proxy) accept() {
 }
 
 func (p *proxy) onAccept(conn net.Conn) {
-	var s = session.NewSession(conn, p.filter)
+	var s = session.NewSession(conn, p.router)
 	s.Run(p.sessionTimeout)
 }
