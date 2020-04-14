@@ -1,9 +1,12 @@
 package routing
 
 import (
+	"fmt"
 	"io"
 	"net"
 	"net/http"
+	"os"
+	"os/exec"
 	"strings"
 )
 
@@ -67,5 +70,27 @@ func passResponse(clientConn net.Conn, serverConn net.Conn) {
 }
 
 func (rj *routeJob) Process(req *http.Request, clientConn net.Conn) {
-	clientConn.Write([]byte("HTTP/1.1 404 Not Found\r\nContent-Length: 7\r\n\r\nJob run"))
+	var jobParamsOption string
+
+	if 0 == len(rj.Run.Args) {
+		jobParamsOption = ""
+	} else {
+		jobParamsOption = "--params"
+		for _, arg := range rj.Run.Args {
+			jobParamsOption = jobParamsOption + fmt.Sprintf(" %s", arg)
+		}
+	}
+
+	var job = exec.Command(
+		fmt.Sprintf("%s/core/startjob", os.Getenv("cis_base_dir")),
+		fmt.Sprintf("%s/%s", rj.Run.Project, rj.Run.Job),
+		jobParamsOption,
+	)
+
+	go startJob(job, clientConn)
+}
+
+func startJob(job *exec.Cmd, clientConn net.Conn) {
+	job.Run()
+	clientConn.Write([]byte("HTTP/1.1 200 OK\r\nContent-Length: 11\r\n\r\nJob started"))
 }
