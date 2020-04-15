@@ -74,7 +74,11 @@ http://proxy_host:proxy_port/another/path/{$whatever} -> http://127.0.0.1:8080/t
 		"Run": {
 			"Project": "another_project",
 			"Job": "another_job",
-			"Args": ["arg1", "arg2", "arg3"]
+			"Args": [
+				{ "Name": "arg1", "Value": "something" },
+				{ "Name": "arg2", "Value": "to" },
+				{ "Name": "arg3", "Value": "pass" }
+			]
 		}
 	}
 ]

@@ -22,5 +22,17 @@
 			"Job": "core_test",
 			"Args": []
 		}
+	},
+	{
+		"Job": "/args-test",
+		"Run": {
+			"Project": "pyinternal",
+			"Job": "core_test_job_with_args",
+			"Args": [
+				{ "Name": "prm1", "Value": "something" },
+				{ "Name": "prm2", "Value": "to" },
+				{ "Name": "prm3", "Value": "pass" }
+			]
+		}
 	}
 ]

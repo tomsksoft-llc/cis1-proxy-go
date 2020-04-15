@@ -29,7 +29,10 @@ type routeJob struct {
 	Run struct {
 		Project string
 		Job     string
-		Args    []string
+		Args    []struct {
+			Name  string
+			Value string
+		}
 	}
 }
 
@@ -70,27 +73,27 @@ func passResponse(clientConn net.Conn, serverConn net.Conn) {
 }
 
 func (rj *routeJob) Process(req *http.Request, clientConn net.Conn) {
-	var jobParamsOption string
+	var (
+		jobExec = fmt.Sprintf("%s/core/startjob", os.Getenv("cis_base_dir"))
+		jobArgs = []string{
+			fmt.Sprintf("%s/%s", rj.Run.Project, rj.Run.Job),
+		}
+	)
 
-	if 0 == len(rj.Run.Args) {
-		jobParamsOption = ""
-	} else {
-		jobParamsOption = "--params"
+	if 0 != len(rj.Run.Args) {
+		jobArgs = append(jobArgs, "--params")
 		for _, arg := range rj.Run.Args {
-			jobParamsOption = jobParamsOption + fmt.Sprintf(" %s", arg)
+			jobArgs = append(jobArgs, arg.Name)
+			jobArgs = append(jobArgs, arg.Value)
 		}
 	}
 
-	var job = exec.Command(
-		fmt.Sprintf("%s/core/startjob", os.Getenv("cis_base_dir")),
-		fmt.Sprintf("%s/%s", rj.Run.Project, rj.Run.Job),
-		jobParamsOption,
-	)
+	var startjobCmd = exec.Command(jobExec, jobArgs...)
 
-	go startJob(job, clientConn)
+	go runJob(startjobCmd, clientConn)
 }
 
-func startJob(job *exec.Cmd, clientConn net.Conn) {
-	job.Run()
+func runJob(startjobCmd *exec.Cmd, clientConn net.Conn) {
+	startjobCmd.Run()
 	clientConn.Write([]byte("HTTP/1.1 200 OK\r\nContent-Length: 11\r\n\r\nJob started"))
 }
