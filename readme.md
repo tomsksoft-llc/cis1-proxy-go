@@ -9,21 +9,18 @@ $ go install
 
 ## Запуск
 
-Вывод информации о запуске:
+Для корректного запуска требуется определить параметры в файле ```init_config.ini```
+Пример файла в: ```configs/proxy_config.ini```
+
+При запуске возможно переопределить эти параметры. Вывод доступных параметров:
 
 ```
 $ ./cis1-proxy-go [-h | --help]
 ```
 
-Режим запуска:
+## Маршрутизация
 
-```
-$ ./cis1-proxy-go -a=[proxy_host] -p=[proxy_port] -c=[config_file_path] -d=[cis_base_dir]
-```
-
-## Конфигурация
-
-### 1. Маршрутизация
+### 1. Проксирование
 
 Формат конфигурации:
 
@@ -91,5 +88,5 @@ http://proxy_host:proxy_port/some-job -> ${cis_base_dir}/core/startjob project_n
 http://proxy_host:proxy_port/another-job -> ${cis_base_dir}/core/startjob another_project/another_job --params arg1 arg2 arg3
 ```
 
-Пример конфига: ```configs/config.json```.
+Пример конфига в: ```configs/router_config.json```.
 

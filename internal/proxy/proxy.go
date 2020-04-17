@@ -10,7 +10,7 @@ import (
 )
 
 type Proxy interface {
-	Configure(configPath string) error
+	ConfigureRouter(configPath string) error
 	Listen(address string) error
 	Run(sessionTimeout int)
 }
@@ -25,7 +25,7 @@ type proxy struct {
 	router         routing.Router
 }
 
-func (p *proxy) Configure(configPath string) error {
+func (p *proxy) ConfigureRouter(configPath string) error {
 	var b, err = ioutil.ReadFile(configPath)
 	if nil != err {
 		return err

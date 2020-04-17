@@ -1,65 +1,50 @@
 package main
 
 import (
-	"flag"
 	"fmt"
 	"net"
 	"os"
-	"strconv"
 
+	"github.com/tomsksoft-llc/cis1-proxy-go/internal/params"
 	"github.com/tomsksoft-llc/cis1-proxy-go/internal/proxy"
 )
 
 func main() {
 	var (
-		host           = flag.String("a", "", "Proxy host")
-		port           = flag.Int("p", 0, "Proxy port")
-		configPath     = flag.String("c", "", "Config file path")
-		sessionTimeout = flag.Int("t", 60, "Session timeout (sec)")
-		CISBaseDir     = flag.String("d", "", "CIS base directory")
+		params params.Params
+		err    error
 	)
 
-	flag.Parse()
-
-	var areAllParamsSet = true
-	if "" == *host {
-		fmt.Println("Host value (-a) is not set")
-		areAllParamsSet = false
-	}
-	if 0 == *port {
-		fmt.Println("Port value (-p) is not set")
-		areAllParamsSet = false
-	}
-	if "" == *configPath {
-		fmt.Println("Config path (-c) is not set")
-		areAllParamsSet = false
-	}
-	if "" == *CISBaseDir {
-		fmt.Println("CIS base directory (-d) is not set")
-		areAllParamsSet = false
+	err = params.ParseIni("proxy_config.ini")
+	if nil != err {
+		fmt.Println("Init:", err.Error())
+		return
 	}
 
-	if true == areAllParamsSet {
-		os.Setenv("cis_base_dir", *CISBaseDir)
+	params.ParseCommandLine()
 
-		var (
-			err   error
-			proxy = proxy.NewProxy()
-		)
-
-		err = proxy.Configure(*configPath)
-		if nil != err {
-			fmt.Printf("Config: %s\r\n", err.Error())
-			return
+	var messages = params.GetMessagesAboutUnsetParams()
+	if 0 != len(messages) {
+		for _, message := range messages {
+			fmt.Println(message)
 		}
-
-		var address = net.JoinHostPort(*host, strconv.Itoa(*port))
-		err = proxy.Listen(address)
-		if nil != err {
-			fmt.Printf("Listen: %s\r\n", err.Error())
-			return
-		}
-
-		proxy.Run(*sessionTimeout)
 	}
+
+	os.Setenv("cis_base_dir", params.CISBaseDir)
+
+	var proxy = proxy.NewProxy()
+
+	err = proxy.ConfigureRouter(params.RouterConfig)
+	if nil != err {
+		fmt.Printf("Router config: %s\r\n", err.Error())
+		return
+	}
+
+	err = proxy.Listen(net.JoinHostPort(params.ProxyHost, params.ProxyPort))
+	if nil != err {
+		fmt.Printf("Listen: %s\r\n", err.Error())
+		return
+	}
+
+	proxy.Run(params.SessionTimeout)
 }
